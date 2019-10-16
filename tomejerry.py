@@ -6,7 +6,7 @@ import traceback
 import warnings
 from collections import namedtuple
 from typing import Iterable, Optional, Union, List, Dict, Any
-
+import redis
 import os
 import threading
 import time
@@ -43,9 +43,9 @@ class LwScore:
     """
     A lightweight score object, that can hold score id and pp only
     """
-    __slots__ = ("score_id", "pp")
+    __slots__ = ("score_id", "pp", "completed")
 
-    def __init__(self, score_id: Optional[int]=None, pp: Optional[int]=None, score_: Optional[score.score]=None):
+    def __init__(self, score_id: Optional[int]=None, pp: Optional[int]=None, score_: Optional[score.score]=None, completed: Optional[int]=None):
         """
         Initializes a new LwScore. Either score_id and pp OR just score must be provided.
 
@@ -56,9 +56,11 @@ class LwScore:
         if score_ is not None:
             self.score_id = score_.scoreID
             self.pp = score_.pp
+            self.completed = score_.completed
         elif score_id is not None and pp is not None:
             self.score_id = score_id
             self.pp = pp
+            self.completed = completed
         else:
             raise RuntimeError("")
 
@@ -229,6 +231,7 @@ class Worker:
         s: score.score = score.score()
         s.setDataFromDict(score_data)
         s.passed = True
+        s.setCompletedStatus()
 
         # Create beatmap object and set its data
         b: beatmap.beatmap = beatmap.beatmap()
@@ -308,6 +311,7 @@ class Worker:
                     if recalculated_score is not None:
                         # New score returned, store new pp in memory
                         self.scores[i].pp = recalculated_score.pp
+                        self.scores[i].completed = recalculated_score.completed
                         if recalculated_score.pp == 0:
                             # PP calculator error
                             self.log_failed_score(score_, "0 pp")
@@ -346,7 +350,7 @@ class Worker:
         for i, lw_score in enumerate(self.scores):
             if i % self.log_every == 0:
                 self.logger.debug("Updated {}/{} scores".format(i, self.chunk_size))
-            glob.db.execute("UPDATE scores SET pp = %s WHERE id = %s LIMIT 1", (lw_score.pp, lw_score.score_id))
+            glob.db.execute("UPDATE scores SET pp = %s, completed = %s WHERE id = %s LIMIT 1", (lw_score.pp, lw_score.score_id, lw_score.completed))
             self.saved_scores_count += 1
 
         self.logger.debug("Scores updated")
@@ -582,6 +586,10 @@ def main():
         glob.conf.config["db"]["database"],
         max(workers_number, MAX_WORKERS)
     )
+
+    logging.info("Connecting to Redis")
+    glob.redis = redis.Redis(glob.conf.config["redis"]["host"], glob.conf.config["redis"]["port"], glob.conf.config["redis"]["database"], glob.conf.config["redis"]["password"])
+    glob.redis.ping()
 
     # Set verbose
     glob.debug = args.verbose
