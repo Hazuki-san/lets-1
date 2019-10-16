@@ -549,7 +549,7 @@ def main():
     )
     recalc_group.add_argument(
         "-rcs", "--recalc-completed-s", help="calculates completed status",
-        required=False
+        required=False, action="store_true"
     )
     parser.add_argument("-w", "--workers", help="number of workers. {} by default. Max {}".format(
         MAX_WORKERS // 2, MAX_WORKERS
