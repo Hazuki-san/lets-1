@@ -547,6 +547,10 @@ def main():
         "-fhd", "--fixstdhd", help="calculates pp for std hd high scores (14/05/2018 pp algorithm changes)",
         required=False, action="store_true"
     )
+    recalc_group.add_argument(
+        "-rcs", "--recalc-completed-s", help="calculates completed status",
+        required=False
+    )
     parser.add_argument("-w", "--workers", help="number of workers. {} by default. Max {}".format(
         MAX_WORKERS // 2, MAX_WORKERS
     ), required=False)
@@ -603,7 +607,8 @@ def main():
         "gamemode": lambda: SimpleRecalculator(("scores.completed = 3", "scores.play_mode = %s",), (args.gamemode,)),
         "userid": lambda: SimpleRecalculator(("scores.completed = 3", "scores.userid = %s",), (args.userid,)),
         "beatmapid": lambda: SimpleRecalculator(("scores.completed = 3", "beatmaps.beatmap_id = %s",), (args.beatmapid,)),
-        "fixstdhd": lambda: SimpleRecalculator(("scores.completed = 3", "scores.play_mode = 0", "scores.mods & 8 > 0"))
+        "fixstdhd": lambda: SimpleRecalculator(("scores.completed = 3", "scores.play_mode = 0", "scores.mods & 8 > 0")),
+        "recalc-completed-s": lambda: SimpleRecalculator(("scores.completed = 2 AND scores.completed = 3",))
     }
     recalculator = None
     for k, v in vars(args).items():
